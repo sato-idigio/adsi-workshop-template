@@ -1,0 +1,17 @@
+{
+  "name": "attendance-system",
+  "private": true,
+  "scripts": {
+    "setup": "cd frontend && npm install",
+    "dev": "(cd backend && ./gradlew bootRun --args='--spring.profiles.active=workshop') & (cd frontend && SAGEMAKER=1 NEXT_PUBLIC_BASE_PATH=/codeeditor/default/absports/3000 npm run dev:sagemaker) & sleep 5 && cd frontend && node scripts/sagemaker-proxy.mjs",
+    "dev:backend": "cd backend && ./gradlew bootRun --args='--spring.profiles.active=workshop'",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:frontend:sagemaker": "cd frontend && SAGEMAKER=1 NEXT_PUBLIC_BASE_PATH=/codeeditor/default/absports/3000 npm run dev:sagemaker",
+    "dev:proxy": "cd frontend && node scripts/sagemaker-proxy.mjs",
+    "test:backend": "cd backend && ./gradlew test",
+    "test:frontend": "cd frontend && npm test",
+    "test": "npm run test:backend && npm run test:frontend",
+    "build:backend": "cd backend && ./gradlew build",
+    "build:frontend": "cd frontend && npm run build"
+  }
+}
