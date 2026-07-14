@@ -19,7 +19,10 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -59,10 +62,16 @@ public class MonthlyReportServiceImpl implements MonthlyReportService {
         LocalDate monthStart = ym.atDay(1);
         LocalDate monthEnd = ym.atEndOfMonth();
 
-        List<Employee> employees = employeeRepository.findAll();
+        List<Employee> employees = employeeRepository.findAllWithDepartment();
+
+        Map<Long, List<LeaveRequest>> leavesByEmployee = leaveRequestRepository
+                .findAllApprovedPaidLeavesInMonth(monthStart, monthEnd)
+                .stream()
+                .collect(Collectors.groupingBy(lr -> lr.getEmployee().getId()));
 
         for (Employee employee : employees) {
-            BigDecimal paidLeaveDays = calculatePaidLeaveDays(employee.getId(), monthStart, monthEnd);
+            List<LeaveRequest> leaves = leavesByEmployee.getOrDefault(employee.getId(), Collections.emptyList());
+            BigDecimal paidLeaveDays = calculatePaidLeaveDays(leaves, monthStart, monthEnd);
 
             var existing = summaryRepository.findByEmployeeIdAndYearMonth(employee.getId(), yearMonth);
 
@@ -84,21 +93,15 @@ public class MonthlyReportServiceImpl implements MonthlyReportService {
         }
     }
 
-    private BigDecimal calculatePaidLeaveDays(Long employeeId, LocalDate monthStart, LocalDate monthEnd) {
-        List<LeaveRequest> leaves = leaveRequestRepository.findApprovedPaidLeavesInMonth(
-                employeeId, monthStart, monthEnd);
-
+    private BigDecimal calculatePaidLeaveDays(List<LeaveRequest> leaves, LocalDate monthStart, LocalDate monthEnd) {
         BigDecimal total = BigDecimal.ZERO;
         for (LeaveRequest leave : leaves) {
+            long daysInMonth = countWeekdaysInRange(
+                    maxDate(leave.getStartDate(), monthStart),
+                    minDate(leave.getEndDate(), monthEnd));
             if (leave.getLeaveType() == LeaveType.HALF_AM || leave.getLeaveType() == LeaveType.HALF_PM) {
-                long daysInMonth = countWeekdaysInRange(
-                        maxDate(leave.getStartDate(), monthStart),
-                        minDate(leave.getEndDate(), monthEnd));
                 total = total.add(new BigDecimal("0.5").multiply(BigDecimal.valueOf(daysInMonth)));
             } else {
-                long daysInMonth = countWeekdaysInRange(
-                        maxDate(leave.getStartDate(), monthStart),
-                        minDate(leave.getEndDate(), monthEnd));
                 total = total.add(BigDecimal.valueOf(daysInMonth));
             }
         }

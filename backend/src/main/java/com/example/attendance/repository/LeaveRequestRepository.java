@@ -39,4 +39,14 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             @Param("employeeId") Long employeeId,
             @Param("monthStart") LocalDate monthStart,
             @Param("monthEnd") LocalDate monthEnd);
+
+    @Query("SELECT lr FROM LeaveRequest lr JOIN FETCH lr.employee WHERE " +
+           "lr.status = com.example.attendance.entity.enums.ApprovalStatus.APPROVED " +
+           "AND lr.leaveType IN (com.example.attendance.entity.enums.LeaveType.PAID, " +
+           "com.example.attendance.entity.enums.LeaveType.HALF_AM, " +
+           "com.example.attendance.entity.enums.LeaveType.HALF_PM) " +
+           "AND lr.startDate <= :monthEnd AND lr.endDate >= :monthStart")
+    List<LeaveRequest> findAllApprovedPaidLeavesInMonth(
+            @Param("monthStart") LocalDate monthStart,
+            @Param("monthEnd") LocalDate monthEnd);
 }

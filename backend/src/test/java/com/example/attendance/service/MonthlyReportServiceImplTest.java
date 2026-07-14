@@ -153,8 +153,8 @@ class MonthlyReportServiceImplTest {
         @Test
         @DisplayName("勤怠レコードなしの場合、勤務時間は全て0になる")
         void generate_noAttendanceRecords_allMinutesAreZero() {
-            when(employeeRepository.findAll()).thenReturn(List.of(employee1));
-            when(leaveRequestRepository.findApprovedPaidLeavesInMonth(eq(1L), any(), any()))
+            when(employeeRepository.findAllWithDepartment()).thenReturn(List.of(employee1));
+            when(leaveRequestRepository.findAllApprovedPaidLeavesInMonth(any(), any()))
                     .thenReturn(Collections.emptyList());
             when(summaryRepository.findByEmployeeIdAndYearMonth(1L, "2026-07"))
                     .thenReturn(Optional.empty());
@@ -176,7 +176,7 @@ class MonthlyReportServiceImplTest {
         @Test
         @DisplayName("承認済み有給休暇がある場合、有給取得日数が計算される")
         void generate_withApprovedPaidLeave_calculatesPaidLeaveDays() {
-            when(employeeRepository.findAll()).thenReturn(List.of(employee1));
+            when(employeeRepository.findAllWithDepartment()).thenReturn(List.of(employee1));
 
             var leave = LeaveRequest.builder()
                     .id(1L)
@@ -188,7 +188,7 @@ class MonthlyReportServiceImplTest {
                     .status(ApprovalStatus.APPROVED)
                     .build();
 
-            when(leaveRequestRepository.findApprovedPaidLeavesInMonth(eq(1L), any(), any()))
+            when(leaveRequestRepository.findAllApprovedPaidLeavesInMonth(any(), any()))
                     .thenReturn(List.of(leave));
             when(summaryRepository.findByEmployeeIdAndYearMonth(1L, "2026-07"))
                     .thenReturn(Optional.empty());
@@ -204,7 +204,7 @@ class MonthlyReportServiceImplTest {
         @Test
         @DisplayName("半休の場合、0.5日として計算される")
         void generate_withHalfLeave_calculatesHalfDay() {
-            when(employeeRepository.findAll()).thenReturn(List.of(employee1));
+            when(employeeRepository.findAllWithDepartment()).thenReturn(List.of(employee1));
 
             var leave = LeaveRequest.builder()
                     .id(1L)
@@ -216,7 +216,7 @@ class MonthlyReportServiceImplTest {
                     .status(ApprovalStatus.APPROVED)
                     .build();
 
-            when(leaveRequestRepository.findApprovedPaidLeavesInMonth(eq(1L), any(), any()))
+            when(leaveRequestRepository.findAllApprovedPaidLeavesInMonth(any(), any()))
                     .thenReturn(List.of(leave));
             when(summaryRepository.findByEmployeeIdAndYearMonth(1L, "2026-07"))
                     .thenReturn(Optional.empty());
@@ -232,8 +232,8 @@ class MonthlyReportServiceImplTest {
         @Test
         @DisplayName("SPECIAL休暇はカウントされない（PaidLeavesInMonthクエリで除外済み）")
         void generate_specialLeaveNotCounted() {
-            when(employeeRepository.findAll()).thenReturn(List.of(employee1));
-            when(leaveRequestRepository.findApprovedPaidLeavesInMonth(eq(1L), any(), any()))
+            when(employeeRepository.findAllWithDepartment()).thenReturn(List.of(employee1));
+            when(leaveRequestRepository.findAllApprovedPaidLeavesInMonth(any(), any()))
                     .thenReturn(Collections.emptyList());
             when(summaryRepository.findByEmployeeIdAndYearMonth(1L, "2026-07"))
                     .thenReturn(Optional.empty());
@@ -249,7 +249,7 @@ class MonthlyReportServiceImplTest {
         @Test
         @DisplayName("月跨ぎの休暇は対象月内の平日のみカウントされる")
         void generate_leaveSpanningMonths_onlyCountsDaysInTargetMonth() {
-            when(employeeRepository.findAll()).thenReturn(List.of(employee1));
+            when(employeeRepository.findAllWithDepartment()).thenReturn(List.of(employee1));
 
             // 2026-06-29(日) ~ 2026-07-03(金): 7月内の平日は 7/1(水),7/2(木),7/3(金) = 3日
             var leave = LeaveRequest.builder()
@@ -262,7 +262,7 @@ class MonthlyReportServiceImplTest {
                     .status(ApprovalStatus.APPROVED)
                     .build();
 
-            when(leaveRequestRepository.findApprovedPaidLeavesInMonth(eq(1L), any(), any()))
+            when(leaveRequestRepository.findAllApprovedPaidLeavesInMonth(any(), any()))
                     .thenReturn(List.of(leave));
             when(summaryRepository.findByEmployeeIdAndYearMonth(1L, "2026-07"))
                     .thenReturn(Optional.empty());
@@ -278,8 +278,8 @@ class MonthlyReportServiceImplTest {
         @Test
         @DisplayName("既存サマリーがある場合は更新される（upsert）")
         void generate_existingSummary_updatesInsteadOfInsert() {
-            when(employeeRepository.findAll()).thenReturn(List.of(employee1));
-            when(leaveRequestRepository.findApprovedPaidLeavesInMonth(eq(1L), any(), any()))
+            when(employeeRepository.findAllWithDepartment()).thenReturn(List.of(employee1));
+            when(leaveRequestRepository.findAllApprovedPaidLeavesInMonth(any(), any()))
                     .thenReturn(Collections.emptyList());
 
             var existing = MonthlyAttendanceSummary.builder()
@@ -305,8 +305,8 @@ class MonthlyReportServiceImplTest {
         @Test
         @DisplayName("複数社員に対して各1レコードが生成される")
         void generate_multipleEmployees_createsOnePerEmployee() {
-            when(employeeRepository.findAll()).thenReturn(List.of(employee1, employee2));
-            when(leaveRequestRepository.findApprovedPaidLeavesInMonth(any(), any(), any()))
+            when(employeeRepository.findAllWithDepartment()).thenReturn(List.of(employee1, employee2));
+            when(leaveRequestRepository.findAllApprovedPaidLeavesInMonth(any(), any()))
                     .thenReturn(Collections.emptyList());
             when(summaryRepository.findByEmployeeIdAndYearMonth(any(), eq("2026-07")))
                     .thenReturn(Optional.empty());

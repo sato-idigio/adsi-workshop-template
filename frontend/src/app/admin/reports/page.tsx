@@ -22,6 +22,7 @@ export default function AdminReportsPage() {
   const [departmentId, setDepartmentId] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(0);
   const [generating, setGenerating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { data, mutate } = useMonthlyReport(yearMonth, departmentId, page);
 
@@ -36,11 +37,13 @@ export default function AdminReportsPage() {
 
   const handleGenerate = async () => {
     setGenerating(true);
+    setErrorMessage(null);
     try {
       await generateMonthlyReport(yearMonth);
       await mutate();
-    } catch {
-      alert('集計生成に失敗しました');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '集計生成に失敗しました';
+      setErrorMessage(message);
     } finally {
       setGenerating(false);
     }
@@ -79,6 +82,11 @@ export default function AdminReportsPage() {
             {generating ? '生成中...' : '集計生成'}
           </button>
         </div>
+        {errorMessage && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
         <MonthlyReportTable
           data={data?.content ?? []}
           totalPages={data?.totalPages ?? 0}

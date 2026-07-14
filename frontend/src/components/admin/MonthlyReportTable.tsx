@@ -38,7 +38,7 @@ export function MonthlyReportTable({ data, totalPages, currentPage, onPageChange
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {data.map((row) => (
-              <tr key={row.employeeId}>
+              <tr key={`${row.employeeId}-${row.yearMonth}`}>
                 <td className="px-4 py-3 text-sm text-gray-900">{row.employeeName}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{row.departmentName}</td>
                 <td className="px-4 py-3 text-sm text-gray-900 text-right">{formatMinutes(row.totalWorkMinutes)}</td>

@@ -1,6 +1,7 @@
 package com.example.attendance.exception;
 
 import com.example.attendance.dto.ErrorResponse;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,6 +53,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleInsufficientLeaveBalance(InsufficientLeaveBalanceException ex) {
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse(ex.getMessage(), "INSUFFICIENT_BALANCE"));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        String message = ex.getConstraintViolations().stream()
+                .map(v -> v.getMessage())
+                .collect(Collectors.joining(", "));
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse(message, "BAD_REQUEST"));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
