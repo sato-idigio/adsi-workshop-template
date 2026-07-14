@@ -80,3 +80,42 @@ export interface ErrorResponse {
   message: string;
   code: string;
 }
+
+export type LeaveType = 'PAID' | 'HALF_AM' | 'HALF_PM' | 'SPECIAL' | 'COMPENSATORY';
+
+export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface LeaveRequestCreate {
+  leaveType: LeaveType;
+  startDate: string;
+  endDate: string;
+  reason: string;
+}
+
+export interface LeaveRequestResponse {
+  id: number;
+  employeeId: number;
+  employeeName: string;
+  leaveType: LeaveType;
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason: string;
+  status: ApprovalStatus;
+  createdAt: string;
+}
+
+export interface LeaveBalanceResponse {
+  fiscalYear: number;
+  totalDays: number;
+  usedDays: number;
+  remainingDays: number;
+}
+
+export interface PagedLeaveRequests {
+  content: LeaveRequestResponse[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
