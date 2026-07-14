@@ -47,6 +47,9 @@ export default function DashboardPage() {
                   <a href={withBasePath('/admin/departments')} className="text-sm text-blue-600 hover:underline">
                     部署管理
                   </a>
+                  <a href={withBasePath('/admin/reports')} className="text-sm text-blue-600 hover:underline">
+                    月次レポート
+                  </a>
                 </>
               )}
             </nav>

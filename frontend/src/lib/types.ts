@@ -119,3 +119,18 @@ export interface PagedLeaveRequests {
   number: number;
   size: number;
 }
+
+export interface MonthlySummaryResponse {
+  employeeId: number;
+  employeeName: string;
+  departmentName: string;
+  yearMonth: string;
+  totalWorkMinutes: number;
+  overtimeMinutes: number;
+  nightMinutes: number;
+  holidayWorkMinutes: number;
+  paidLeaveDays: number;
+  workingDays: number;
+}
+
+export type PagedMonthlySummaries = PagedResponse<MonthlySummaryResponse>;
