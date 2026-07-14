@@ -2,15 +2,8 @@
 
 import { useState } from 'react';
 import { createLeaveRequest } from '@/hooks/useLeave';
+import { LEAVE_TYPE_LABELS } from '@/lib/constants';
 import type { LeaveType } from '@/lib/types';
-
-const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
-  PAID: '有給休暇',
-  HALF_AM: '午前半休',
-  HALF_PM: '午後半休',
-  SPECIAL: '特別休暇',
-  COMPENSATORY: '代休',
-};
 
 interface LeaveRequestFormProps {
   onSuccess: () => void;
@@ -29,13 +22,19 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    setSubmitting(true);
 
+    const effectiveEndDate = isHalf ? startDate : endDate;
+    if (!isHalf && endDate < startDate) {
+      setError('終了日は開始日以降の日付を指定してください');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       await createLeaveRequest({
         leaveType,
         startDate,
-        endDate: isHalf ? startDate : endDate,
+        endDate: effectiveEndDate,
         reason,
       });
       setStartDate('');
@@ -87,6 +86,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             required
+            min={startDate || undefined}
             className="w-full border border-gray-300 rounded px-3 py-2"
           />
         </div>

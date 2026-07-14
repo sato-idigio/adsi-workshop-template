@@ -2,27 +2,21 @@
 
 import { useState } from 'react';
 import { useLeaveRequests, approveLeaveRequest, rejectLeaveRequest } from '@/hooks/useLeave';
-import type { LeaveType } from '@/lib/types';
-
-const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
-  PAID: '有給休暇',
-  HALF_AM: '午前半休',
-  HALF_PM: '午後半休',
-  SPECIAL: '特別休暇',
-  COMPENSATORY: '代休',
-};
+import { LEAVE_TYPE_LABELS } from '@/lib/constants';
 
 export function LeaveApprovalList() {
   const { data, error, isLoading, mutate } = useLeaveRequests('PENDING');
   const [processing, setProcessing] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   async function handleApprove(id: number) {
     setProcessing(id);
+    setActionError(null);
     try {
       await approveLeaveRequest(id);
       mutate();
     } catch (err) {
-      alert(err instanceof Error ? err.message : '承認に失敗しました');
+      setActionError(err instanceof Error ? err.message : '承認に失敗しました');
     } finally {
       setProcessing(null);
     }
@@ -30,11 +24,12 @@ export function LeaveApprovalList() {
 
   async function handleReject(id: number) {
     setProcessing(id);
+    setActionError(null);
     try {
       await rejectLeaveRequest(id);
       mutate();
     } catch (err) {
-      alert(err instanceof Error ? err.message : '却下に失敗しました');
+      setActionError(err instanceof Error ? err.message : '却下に失敗しました');
     } finally {
       setProcessing(null);
     }
@@ -48,6 +43,11 @@ export function LeaveApprovalList() {
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
+      {actionError && (
+        <div className="px-4 py-3 bg-red-50 text-red-700 text-sm border-b border-red-200">
+          {actionError}
+        </div>
+      )}
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>

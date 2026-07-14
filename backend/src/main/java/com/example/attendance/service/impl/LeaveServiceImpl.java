@@ -107,16 +107,22 @@ public class LeaveServiceImpl implements LeaveService {
             throw new IllegalArgumentException("自分の申請は承認できません");
         }
 
-        leaveRequest.approve(approver);
-
         if (requiresBalanceCheck(leaveRequest.getLeaveType())) {
             int fiscalYear = leaveRequest.getStartDate().getYear();
             LeaveBalance balance = leaveBalanceRepository
                     .findByEmployeeIdAndFiscalYear(leaveRequest.getEmployee().getId(), fiscalYear)
                     .orElseThrow(() -> new ResourceNotFoundException("有給残日数データが見つかりません"));
+
+            if (balance.getRemainingDays().compareTo(leaveRequest.getDays()) < 0) {
+                throw new InsufficientLeaveBalanceException(
+                        "有給残日数が不足しています（残: " + balance.getRemainingDays() + "日, 申請: " + leaveRequest.getDays() + "日）");
+            }
+
             balance.addUsedDays(leaveRequest.getDays());
             leaveBalanceRepository.save(balance);
         }
+
+        leaveRequest.approve(approver);
 
         LeaveRequest saved = leaveRequestRepository.save(leaveRequest);
         return LeaveRequestResponse.from(saved);
@@ -133,6 +139,11 @@ public class LeaveServiceImpl implements LeaveService {
         }
 
         Employee approver = findEmployeeByNumber(approverEmployeeNumber);
+
+        if (leaveRequest.getEmployee().getId().equals(approver.getId())) {
+            throw new IllegalArgumentException("自分の申請は却下できません");
+        }
+
         leaveRequest.reject(approver);
 
         LeaveRequest saved = leaveRequestRepository.save(leaveRequest);
