@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { withBasePath } from '@/lib/api-client';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 
@@ -22,7 +21,7 @@ export default function LoginPage() {
 
     try {
       await login({ employeeNumber, password });
-      router.push(withBasePath('/'));
+      router.push('/');
     } catch (err) {
       setError('社員番号またはパスワードが正しくありません');
     } finally {
