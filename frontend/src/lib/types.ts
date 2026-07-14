@@ -80,3 +80,46 @@ export interface ErrorResponse {
   message: string;
   code: string;
 }
+
+export interface AttendanceRecordResponse {
+  id: number;
+  employeeId: number;
+  date: string;
+  clockIn: string | null;
+  clockOut: string | null;
+  workMinutes: number | null;
+  overtimeMinutes: number | null;
+  nightMinutes: number | null;
+}
+
+export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface CorrectionRequestCreate {
+  attendanceRecordId: number;
+  requestedClockIn?: string | null;
+  requestedClockOut?: string | null;
+  reason: string;
+}
+
+export interface CorrectionRequestResponse {
+  id: number;
+  employeeId: number;
+  employeeName: string;
+  attendanceRecordId: number;
+  date: string;
+  currentClockIn: string | null;
+  currentClockOut: string | null;
+  requestedClockIn: string | null;
+  requestedClockOut: string | null;
+  reason: string;
+  status: ApprovalStatus;
+  createdAt: string;
+}
+
+export interface PagedCorrectionRequests {
+  content: CorrectionRequestResponse[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}

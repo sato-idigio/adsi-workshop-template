@@ -1,18 +1,22 @@
 import http from 'node:http';
 import { request as httpRequest } from 'node:http';
+import net from 'node:net';
 
 const NEXT_PORT = 3001;
 const BACKEND_PORT = 8080;
 const PROXY_PORT = 3000;
 const STRIP_PREFIX = '/absports/3000';
+const FULL_PREFIX = '/codeeditor/default/absports/3000';
 const RESTORE_PREFIX = '/codeeditor/default';
 
 const server = http.createServer((req, res) => {
   let url = req.url || '/';
 
-  // Strip /absports/3000 prefix that code-server sends
+  // Strip prefix: handle both /codeeditor/default/absports/3000 and /absports/3000
   let stripped = url;
-  if (stripped.startsWith(STRIP_PREFIX)) {
+  if (stripped.startsWith(FULL_PREFIX)) {
+    stripped = stripped.slice(FULL_PREFIX.length) || '/';
+  } else if (stripped.startsWith(STRIP_PREFIX)) {
     stripped = stripped.slice(STRIP_PREFIX.length) || '/';
   }
 
@@ -28,6 +32,51 @@ const server = http.createServer((req, res) => {
   // So the URL sent to Next.js should be: /codeeditor/default + /absports/3000 + path
   const nextUrl = RESTORE_PREFIX + STRIP_PREFIX + stripped;
   proxy(req, res, NEXT_PORT, nextUrl);
+});
+
+// WebSocket upgrade handling for HMR
+server.on('upgrade', (req, socket, head) => {
+  let url = req.url || '/';
+
+  let stripped = url;
+  if (stripped.startsWith(FULL_PREFIX)) {
+    stripped = stripped.slice(FULL_PREFIX.length) || '/';
+  } else if (stripped.startsWith(STRIP_PREFIX)) {
+    stripped = stripped.slice(STRIP_PREFIX.length) || '/';
+  }
+
+  const nextUrl = RESTORE_PREFIX + STRIP_PREFIX + stripped;
+
+  const proxyReq = http.request({
+    hostname: '127.0.0.1',
+    port: NEXT_PORT,
+    path: nextUrl,
+    method: req.method,
+    headers: {
+      ...req.headers,
+      host: `127.0.0.1:${NEXT_PORT}`,
+    },
+  });
+
+  proxyReq.on('upgrade', (proxyRes, proxySocket, proxyHead) => {
+    socket.write(
+      `HTTP/1.1 ${proxyRes.statusCode || 101} ${proxyRes.statusMessage || 'Switching Protocols'}\r\n` +
+      Object.entries(proxyRes.headers)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join('\r\n') +
+      '\r\n\r\n'
+    );
+    if (proxyHead.length) socket.write(proxyHead);
+    proxySocket.pipe(socket);
+    socket.pipe(proxySocket);
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error('WebSocket proxy error:', err.message);
+    socket.destroy();
+  });
+
+  proxyReq.end();
 });
 
 function proxy(req, res, port, path) {
