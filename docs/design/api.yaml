@@ -1,0 +1,1091 @@
+openapi: 3.0.3
+info:
+  title: 勤怠管理システム API
+  description: 社員の出退勤打刻・勤怠管理・休暇管理 REST API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/api
+    description: ローカル開発
+
+tags:
+  - name: auth
+    description: 認証
+  - name: attendance
+    description: 出退勤打刻
+  - name: attendance-correction
+    description: 打刻修正申請
+  - name: leave
+    description: 休暇管理
+  - name: monthly-report
+    description: 月次レポート
+  - name: employees
+    description: 社員管理
+  - name: departments
+    description: 部署管理
+
+paths:
+  # === 認証 ===
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: ログイン
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: 認証失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: ログアウト
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: ログアウト成功
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: 現在のユーザー情報取得
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResponse'
+
+  # === 打刻 ===
+  /attendance/clock-in:
+    post:
+      tags: [attendance]
+      summary: 出勤打刻
+      operationId: clockIn
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 打刻成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceRecordResponse'
+        '409':
+          description: 既に出勤打刻済み
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /attendance/clock-out:
+    post:
+      tags: [attendance]
+      summary: 退勤打刻
+      operationId: clockOut
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 打刻成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceRecordResponse'
+        '409':
+          description: 出勤打刻がない / 既に退勤打刻済み
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /attendance/today:
+    get:
+      tags: [attendance]
+      summary: 当日の打刻状況を取得
+      operationId: getTodayAttendance
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功（レコードがない場合は null を返す）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceRecordResponse'
+
+  /attendance/monthly:
+    get:
+      tags: [attendance]
+      summary: 自分の月次勤怠一覧
+      operationId: getMyMonthlyAttendance
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: yearMonth
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+            example: '2026-07'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AttendanceRecordResponse'
+
+  # === 打刻修正 ===
+  /attendance-corrections:
+    post:
+      tags: [attendance-correction]
+      summary: 打刻修正申請
+      operationId: createCorrectionRequest
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrectionRequestCreate'
+      responses:
+        '201':
+          description: 申請作成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectionRequestResponse'
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+
+    get:
+      tags: [attendance-correction]
+      summary: 打刻修正申請一覧（管理者: 全件 / 一般: 自分のみ）
+      operationId: listCorrectionRequests
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ApprovalStatus'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedCorrectionRequests'
+
+  /attendance-corrections/{id}/approve:
+    put:
+      tags: [attendance-correction]
+      summary: 打刻修正申請を承認
+      operationId: approveCorrectionRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 承認成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectionRequestResponse'
+        '403':
+          description: 権限なし
+        '404':
+          description: 申請が見つからない
+
+  /attendance-corrections/{id}/reject:
+    put:
+      tags: [attendance-correction]
+      summary: 打刻修正申請を却下
+      operationId: rejectCorrectionRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 却下成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectionRequestResponse'
+        '403':
+          description: 権限なし
+        '404':
+          description: 申請が見つからない
+
+  # === 休暇管理 ===
+  /leaves:
+    post:
+      tags: [leave]
+      summary: 休暇申請
+      operationId: createLeaveRequest
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeaveRequestCreate'
+      responses:
+        '201':
+          description: 申請作成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequestResponse'
+        '400':
+          description: バリデーションエラー / 残日数不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+
+    get:
+      tags: [leave]
+      summary: 休暇申請一覧（管理者: 全件 / 一般: 自分のみ）
+      operationId: listLeaveRequests
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ApprovalStatus'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedLeaveRequests'
+
+  /leaves/{id}/approve:
+    put:
+      tags: [leave]
+      summary: 休暇申請を承認
+      operationId: approveLeaveRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 承認成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequestResponse'
+        '403':
+          description: 権限なし
+        '404':
+          description: 申請が見つからない
+
+  /leaves/{id}/reject:
+    put:
+      tags: [leave]
+      summary: 休暇申請を却下
+      operationId: rejectLeaveRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 却下成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequestResponse'
+        '403':
+          description: 権限なし
+        '404':
+          description: 申請が見つからない
+
+  /leaves/balance:
+    get:
+      tags: [leave]
+      summary: 有給残日数を取得
+      operationId: getLeaveBalance
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fiscalYear
+          in: query
+          schema:
+            type: integer
+            example: 2026
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveBalanceResponse'
+
+  # === 月次レポート ===
+  /reports/monthly:
+    get:
+      tags: [monthly-report]
+      summary: 月次勤怠集計レポート（管理者のみ）
+      operationId: getMonthlyReport
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: yearMonth
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+        - name: departmentId
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedMonthlySummaries'
+        '403':
+          description: 権限なし（管理者のみ）
+
+  # === 社員管理 ===
+  /employees:
+    get:
+      tags: [employees]
+      summary: 社員一覧（管理者のみ）
+      operationId: listEmployees
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: departmentId
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: keyword
+          in: query
+          description: 氏名・社員番号で検索
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedEmployees'
+        '403':
+          description: 権限なし
+
+    post:
+      tags: [employees]
+      summary: 社員登録（管理者のみ）
+      operationId: createEmployee
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCreateRequest'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResponse'
+        '400':
+          description: バリデーションエラー
+        '403':
+          description: 権限なし
+        '409':
+          description: 社員番号重複
+
+  /employees/{id}:
+    get:
+      tags: [employees]
+      summary: 社員詳細（管理者のみ）
+      operationId: getEmployee
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResponse'
+        '404':
+          description: 社員が見つからない
+
+    put:
+      tags: [employees]
+      summary: 社員情報更新（管理者のみ）
+      operationId: updateEmployee
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResponse'
+        '400':
+          description: バリデーションエラー
+        '404':
+          description: 社員が見つからない
+        '409':
+          description: 楽観ロック競合
+
+  # === 部署管理 ===
+  /departments:
+    get:
+      tags: [departments]
+      summary: 部署一覧（ツリー構造）
+      operationId: listDepartments
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DepartmentTreeResponse'
+
+    post:
+      tags: [departments]
+      summary: 部署作成（管理者のみ）
+      operationId: createDepartment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentCreateRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentResponse'
+        '400':
+          description: バリデーションエラー / 階層超過
+        '403':
+          description: 権限なし
+
+  /departments/{id}:
+    put:
+      tags: [departments]
+      summary: 部署更新（管理者のみ）
+      operationId: updateDepartment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentResponse'
+        '400':
+          description: バリデーションエラー
+        '404':
+          description: 部署が見つからない
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # === 認証 ===
+    LoginRequest:
+      type: object
+      required: [employeeNumber, password]
+      properties:
+        employeeNumber:
+          type: string
+          example: 'EMP001'
+        password:
+          type: string
+          format: password
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        employee:
+          $ref: '#/components/schemas/EmployeeResponse'
+
+    # === 社員 ===
+    EmployeeResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        employeeNumber:
+          type: string
+        lastName:
+          type: string
+        firstName:
+          type: string
+        email:
+          type: string
+        department:
+          $ref: '#/components/schemas/DepartmentResponse'
+        position:
+          type: string
+        role:
+          type: string
+          enum: [EMPLOYEE, ADMIN]
+        hireDate:
+          type: string
+          format: date
+
+    EmployeeCreateRequest:
+      type: object
+      required: [employeeNumber, lastName, firstName, email, password, departmentId, role, hireDate]
+      properties:
+        employeeNumber:
+          type: string
+          minLength: 1
+          maxLength: 20
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        departmentId:
+          type: integer
+          format: int64
+        position:
+          type: string
+          maxLength: 100
+        role:
+          type: string
+          enum: [EMPLOYEE, ADMIN]
+        hireDate:
+          type: string
+          format: date
+
+    EmployeeUpdateRequest:
+      type: object
+      required: [lastName, firstName, email, departmentId, role, hireDate, version]
+      properties:
+        lastName:
+          type: string
+        firstName:
+          type: string
+        email:
+          type: string
+          format: email
+        departmentId:
+          type: integer
+          format: int64
+        position:
+          type: string
+        role:
+          type: string
+          enum: [EMPLOYEE, ADMIN]
+        hireDate:
+          type: string
+          format: date
+        version:
+          type: integer
+          format: int64
+
+    PagedEmployees:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmployeeResponse'
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    # === 部署 ===
+    DepartmentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        level:
+          type: integer
+        parentId:
+          type: integer
+          format: int64
+          nullable: true
+
+    DepartmentTreeResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        level:
+          type: integer
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/DepartmentTreeResponse'
+
+    DepartmentCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        parentId:
+          type: integer
+          format: int64
+          nullable: true
+
+    DepartmentUpdateRequest:
+      type: object
+      required: [name, version]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        parentId:
+          type: integer
+          format: int64
+          nullable: true
+        version:
+          type: integer
+          format: int64
+
+    # === 打刻 ===
+    AttendanceRecordResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date
+        clockIn:
+          type: string
+          format: date-time
+          nullable: true
+        clockOut:
+          type: string
+          format: date-time
+          nullable: true
+        workMinutes:
+          type: integer
+          nullable: true
+        overtimeMinutes:
+          type: integer
+          nullable: true
+        nightMinutes:
+          type: integer
+          nullable: true
+
+    # === 打刻修正 ===
+    CorrectionRequestCreate:
+      type: object
+      required: [attendanceRecordId, reason]
+      properties:
+        attendanceRecordId:
+          type: integer
+          format: int64
+        requestedClockIn:
+          type: string
+          format: date-time
+          nullable: true
+        requestedClockOut:
+          type: string
+          format: date-time
+          nullable: true
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    CorrectionRequestResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        employeeId:
+          type: integer
+          format: int64
+        employeeName:
+          type: string
+        attendanceRecordId:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date
+        currentClockIn:
+          type: string
+          format: date-time
+          nullable: true
+        currentClockOut:
+          type: string
+          format: date-time
+          nullable: true
+        requestedClockIn:
+          type: string
+          format: date-time
+          nullable: true
+        requestedClockOut:
+          type: string
+          format: date-time
+          nullable: true
+        reason:
+          type: string
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        createdAt:
+          type: string
+          format: date-time
+
+    PagedCorrectionRequests:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/CorrectionRequestResponse'
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    # === 休暇 ===
+    LeaveRequestCreate:
+      type: object
+      required: [leaveType, startDate, endDate, reason]
+      properties:
+        leaveType:
+          $ref: '#/components/schemas/LeaveType'
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    LeaveRequestResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        employeeId:
+          type: integer
+          format: int64
+        employeeName:
+          type: string
+        leaveType:
+          $ref: '#/components/schemas/LeaveType'
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        days:
+          type: number
+          format: decimal
+        reason:
+          type: string
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        createdAt:
+          type: string
+          format: date-time
+
+    PagedLeaveRequests:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaveRequestResponse'
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    LeaveBalanceResponse:
+      type: object
+      properties:
+        fiscalYear:
+          type: integer
+        totalDays:
+          type: number
+          format: decimal
+        usedDays:
+          type: number
+          format: decimal
+        remainingDays:
+          type: number
+          format: decimal
+
+    # === 月次レポート ===
+    MonthlySummaryResponse:
+      type: object
+      properties:
+        employeeId:
+          type: integer
+          format: int64
+        employeeName:
+          type: string
+        departmentName:
+          type: string
+        yearMonth:
+          type: string
+        totalWorkMinutes:
+          type: integer
+        overtimeMinutes:
+          type: integer
+        nightMinutes:
+          type: integer
+        holidayWorkMinutes:
+          type: integer
+        paidLeaveDays:
+          type: number
+          format: decimal
+        workingDays:
+          type: integer
+
+    PagedMonthlySummaries:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlySummaryResponse'
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    # === 共通 ===
+    ApprovalStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED]
+
+    LeaveType:
+      type: string
+      enum: [PAID, HALF_AM, HALF_PM, SPECIAL, COMPENSATORY]
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
