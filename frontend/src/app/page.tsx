@@ -32,16 +32,24 @@ export default function DashboardPage() {
             <span className="text-sm text-gray-600">
               {user.lastName} {user.firstName}
             </span>
-            {user.role === 'ADMIN' && (
-              <nav className="flex gap-2">
-                <a href={withBasePath('/admin/employees')} className="text-sm text-blue-600 hover:underline">
-                  社員管理
-                </a>
-                <a href={withBasePath('/admin/departments')} className="text-sm text-blue-600 hover:underline">
-                  部署管理
-                </a>
-              </nav>
-            )}
+            <nav className="flex gap-2">
+              <a href={withBasePath('/leaves')} className="text-sm text-blue-600 hover:underline">
+                休暇管理
+              </a>
+              {user.role === 'ADMIN' && (
+                <>
+                  <a href={withBasePath('/admin/leaves')} className="text-sm text-blue-600 hover:underline">
+                    休暇承認
+                  </a>
+                  <a href={withBasePath('/admin/employees')} className="text-sm text-blue-600 hover:underline">
+                    社員管理
+                  </a>
+                  <a href={withBasePath('/admin/departments')} className="text-sm text-blue-600 hover:underline">
+                    部署管理
+                  </a>
+                </>
+              )}
+            </nav>
             <button
               onClick={logout}
               className="text-sm text-gray-500 hover:text-gray-700"
