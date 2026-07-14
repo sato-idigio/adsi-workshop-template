@@ -31,7 +31,7 @@ export default function DepartmentsPage() {
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== 'ADMIN')) {
-      router.push(withBasePath('/'));
+      router.push('/');
       return;
     }
     if (user) {
